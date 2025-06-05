@@ -26,12 +26,11 @@ import androidx.core.content.ContextCompat;
 // 48 kHz RAW 16-bit mono PCM
 public class MainActivity extends AppCompatActivity {
 
-    Button buttonStart, buttonStop, buttonPlayLastRecordAudio,
-            buttonStopPlayingRecording, buttonPlayOriginal;
+    Button buttonStart, buttonStop, buttonPlayLastRecordAudio, buttonStopPlayingRecording, buttonPlayOriginal;
     String originPath = null;
     String outputPath = null;
 
-    Random random ;
+    Random random;
     String RandomAudioFileName = "ABCDEFGHIJKLMNOP";
     public static final int RequestPermissionCode = 1;
     MediaPlayer mediaPlayer;
@@ -51,8 +50,8 @@ public class MainActivity extends AppCompatActivity {
         buttonStart = (Button) findViewById(R.id.button);
         buttonStop = (Button) findViewById(R.id.button2);
         buttonPlayLastRecordAudio = (Button) findViewById(R.id.button3);
-        buttonStopPlayingRecording = (Button)findViewById(R.id.button4);
-        buttonPlayOriginal = (Button)findViewById(R.id.button5);
+        buttonStopPlayingRecording = (Button) findViewById(R.id.button4);
+        buttonPlayOriginal = (Button) findViewById(R.id.button5);
 
         buttonStop.setEnabled(false);
         buttonPlayLastRecordAudio.setEnabled(false);
@@ -65,14 +64,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
 
-                if(checkPermission()) {
+                if (checkPermission()) {
 
                     // 使用应用专用存储路径
                     File recordingsDir = new File(getExternalFilesDir(null), "Recordings");
                     if (!recordingsDir.exists()) {
                         recordingsDir.mkdirs();
                     }
-                    
+
                     originPath = new File(recordingsDir, CreateRandomAudioFileName(5) + "recording.wav").getAbsolutePath();
                     outputPath = new File(recordingsDir, CreateRandomAudioFileName(5) + "processed.wav").getAbsolutePath();
 
@@ -91,8 +90,7 @@ public class MainActivity extends AppCompatActivity {
                     buttonStart.setEnabled(false);
                     buttonStop.setEnabled(true);
 
-                    Toast.makeText(MainActivity.this, "Recording started",
-                            Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this, "Recording started", Toast.LENGTH_LONG).show();
                 } else {
                     requestPermission();
                 }
@@ -111,8 +109,7 @@ public class MainActivity extends AppCompatActivity {
                 buttonStart.setEnabled(true);
                 buttonStopPlayingRecording.setEnabled(false);
 
-                Toast.makeText(MainActivity.this, "Recording Completed: " + originPath,
-                        Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Recording Completed: " + originPath, Toast.LENGTH_LONG).show();
 
                 String output = denoise(originPath, outputPath);
             }
@@ -120,8 +117,7 @@ public class MainActivity extends AppCompatActivity {
 
         buttonPlayLastRecordAudio.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) throws IllegalArgumentException,
-                    SecurityException, IllegalStateException {
+            public void onClick(View view) throws IllegalArgumentException, SecurityException, IllegalStateException {
 
                 buttonStop.setEnabled(false);
                 buttonStart.setEnabled(false);
@@ -131,15 +127,13 @@ public class MainActivity extends AppCompatActivity {
                 player.prepare(outputPath);
                 player.play();
 
-                Toast.makeText(MainActivity.this, "Recording Playing: " + outputPath,
-                        Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Recording Playing: " + outputPath, Toast.LENGTH_LONG).show();
             }
         });
 
         buttonPlayOriginal.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) throws IllegalArgumentException,
-                    SecurityException, IllegalStateException {
+            public void onClick(View view) throws IllegalArgumentException, SecurityException, IllegalStateException {
 
                 buttonStop.setEnabled(false);
                 buttonStart.setEnabled(false);
@@ -149,8 +143,7 @@ public class MainActivity extends AppCompatActivity {
                 player.prepare(originPath);
                 player.play();
 
-                Toast.makeText(MainActivity.this, "Recording Playing: " + originPath,
-                        Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Recording Playing: " + originPath, Toast.LENGTH_LONG).show();
             }
         });
 
@@ -162,7 +155,7 @@ public class MainActivity extends AppCompatActivity {
                 buttonStopPlayingRecording.setEnabled(false);
                 buttonPlayLastRecordAudio.setEnabled(true);
 
-                if(mediaPlayer != null){
+                if (mediaPlayer != null) {
                     mediaPlayer.stop();
                     mediaPlayer.release();
                     MediaRecorderReady();
@@ -172,43 +165,37 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void MediaRecorderReady(){
+    public void MediaRecorderReady() {
         wavRecorder = null;
     }
 
-    public String CreateRandomAudioFileName(int string){
-        StringBuilder stringBuilder = new StringBuilder( string );
-        int i = 0 ;
-        while(i < string ) {
-            stringBuilder.append(RandomAudioFileName.
-                    charAt(random.nextInt(RandomAudioFileName.length())));
+    public String CreateRandomAudioFileName(int string) {
+        StringBuilder stringBuilder = new StringBuilder(string);
+        int i = 0;
+        while (i < string) {
+            stringBuilder.append(RandomAudioFileName.charAt(random.nextInt(RandomAudioFileName.length())));
 
-            i++ ;
+            i++;
         }
         return stringBuilder.toString();
     }
 
     private void requestPermission() {
-        ActivityCompat.requestPermissions(MainActivity.this, new
-                String[]{WRITE_EXTERNAL_STORAGE, RECORD_AUDIO}, RequestPermissionCode);
+        ActivityCompat.requestPermissions(MainActivity.this, new String[]{WRITE_EXTERNAL_STORAGE, RECORD_AUDIO}, RequestPermissionCode);
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
             case RequestPermissionCode:
-                if (grantResults.length> 0) {
-                    boolean StoragePermission = grantResults[0] ==
-                            PackageManager.PERMISSION_GRANTED;
-                    boolean RecordPermission = grantResults[1] ==
-                            PackageManager.PERMISSION_GRANTED;
+                if (grantResults.length > 0) {
+                    boolean StoragePermission = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+                    boolean RecordPermission = grantResults[1] == PackageManager.PERMISSION_GRANTED;
 
                     if (StoragePermission && RecordPermission) {
-                        Toast.makeText(MainActivity.this, "Permission Granted",
-                                Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "Permission Granted", Toast.LENGTH_LONG).show();
                     } else {
-                        Toast.makeText(MainActivity.this,"Permission Denied",Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "Permission Denied", Toast.LENGTH_LONG).show();
                     }
                 }
                 break;
@@ -216,12 +203,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public boolean checkPermission() {
-        int result = ContextCompat.checkSelfPermission(getApplicationContext(),
-                WRITE_EXTERNAL_STORAGE);
 //        int result = ContextCompat.checkSelfPermission(getApplicationContext(),
 //                WRITE_EXTERNAL_STORAGE);
-        int result1 = ContextCompat.checkSelfPermission(getApplicationContext(),
-                RECORD_AUDIO);
+        int result1 = ContextCompat.checkSelfPermission(getApplicationContext(), RECORD_AUDIO);
         return result1 == PackageManager.PERMISSION_GRANTED;
     }
 
