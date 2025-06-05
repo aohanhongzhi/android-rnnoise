@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import java.io.File;
 import java.util.Random;
 
 import static android.Manifest.permission.RECORD_AUDIO;
@@ -66,17 +67,20 @@ public class MainActivity extends AppCompatActivity {
 
                 if(checkPermission()) {
 
-                    originPath =
-                            Environment.getExternalStorageDirectory().getAbsolutePath() + "/" +
-                                    CreateRandomAudioFileName(5) + "recording.wav";
-
-                    outputPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/" +
-                            CreateRandomAudioFileName(5) + "processed.wav";
+                    // 使用应用专用存储路径
+                    File recordingsDir = new File(getExternalFilesDir(null), "Recordings");
+                    if (!recordingsDir.exists()) {
+                        recordingsDir.mkdirs();
+                    }
+                    
+                    originPath = new File(recordingsDir, CreateRandomAudioFileName(5) + "recording.wav").getAbsolutePath();
+                    outputPath = new File(recordingsDir, CreateRandomAudioFileName(5) + "processed.wav").getAbsolutePath();
 
                     MediaRecorderReady();
 
                     try {
-                        wavRecorder = new WavRecorder(originPath);
+                        // 将 Context 传递给 WavRecorder
+                        wavRecorder = new WavRecorder(originPath, MainActivity.this);
                         wavRecorder.startRecording();
 
                     } catch (IllegalStateException e) {
@@ -214,10 +218,11 @@ public class MainActivity extends AppCompatActivity {
     public boolean checkPermission() {
         int result = ContextCompat.checkSelfPermission(getApplicationContext(),
                 WRITE_EXTERNAL_STORAGE);
+//        int result = ContextCompat.checkSelfPermission(getApplicationContext(),
+//                WRITE_EXTERNAL_STORAGE);
         int result1 = ContextCompat.checkSelfPermission(getApplicationContext(),
                 RECORD_AUDIO);
-        return result == PackageManager.PERMISSION_GRANTED &&
-                result1 == PackageManager.PERMISSION_GRANTED;
+        return result1 == PackageManager.PERMISSION_GRANTED;
     }
 
     public native String denoise(String path, String output);

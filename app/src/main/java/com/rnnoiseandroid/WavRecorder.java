@@ -6,10 +6,11 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.Environment;
+import android.util.Log;
 
 // 48 kHz RAW 16-bit mono PCM
 public class WavRecorder {
@@ -29,15 +30,17 @@ public class WavRecorder {
     int bytesRecorded;
 
     private String output;
+    private Context context;
+    private String tempFilePath; // 存储临时文件路径
 
-    public WavRecorder(String path) {
+    public WavRecorder(String path, Context context) {
         bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
                 RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING) * 3;
 
         audioData = new short[bufferSize]; // short array that pcm data is put
         // into.
         output = path;
-
+        this.context = context;
     }
 
     private String getFilename() {
@@ -45,50 +48,87 @@ public class WavRecorder {
     }
 
     private String getTempFilename() {
-        String filepath = Environment.getExternalStorageDirectory().getPath();
-        File file = new File(filepath, AUDIO_RECORDER_FOLDER);
-
-        if (!file.exists()) {
-            file.mkdirs();
+        if (tempFilePath != null) {
+            return tempFilePath; // 如果已经设置了临时文件路径，直接返回
         }
 
-        File tempFile = new File(filepath, AUDIO_RECORDER_TEMP_FILE);
+        // 使用应用专用目录代替外部存储
+        File file = new File(context.getExternalFilesDir(null), AUDIO_RECORDER_FOLDER);
+        Log.d("WavRecorder", "Audio folder path: " + file.getAbsolutePath());
 
-        if (tempFile.exists())
-            tempFile.delete();
+        // 确保目录存在
+        if (!file.exists()) {
+            boolean success = file.mkdirs();
+            Log.d("WavRecorder", "Directory created: " + success);
+            if (!success) {
+                Log.e("WavRecorder", "Failed to create directory: " + file.getAbsolutePath());
+            }
+        }
 
-        return (file.getAbsolutePath() + "/" + AUDIO_RECORDER_TEMP_FILE);
+        File tempFile = new File(file, AUDIO_RECORDER_TEMP_FILE);
+        Log.d("WavRecorder", "Temp file path: " + tempFile.getAbsolutePath());
+
+        // 如果临时文件存在，删除它
+        if (tempFile.exists()) {
+            boolean deleted = tempFile.delete();
+            if (!deleted) {
+                Log.e("WavRecorder", "Failed to delete existing temp file");
+            }
+        }
+        
+        tempFilePath = tempFile.getAbsolutePath();
+        return tempFilePath;
     }
 
     public void startRecording() {
+        try {
+            // 创建 AudioRecord 实例（会触发 RECORD_AUDIO 权限检查）
+            recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                    RECORDER_SAMPLERATE, RECORDER_CHANNELS,
+                    RECORDER_AUDIO_ENCODING, bufferSize);
+                    
+            int i = recorder.getState();
+            if (i == AudioRecord.STATE_INITIALIZED) {
+                recorder.startRecording();
+                isRecording = true;
 
-        recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-                RECORDER_AUDIO_ENCODING, bufferSize);
-        int i = recorder.getState();
-        if (i == 1)
-            recorder.startRecording();
+                recordingThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        writeAudioDataToFile();
+                    }
+                }, "AudioRecorder Thread");
 
-        isRecording = true;
-
-        recordingThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                writeAudioDataToFile();
+                recordingThread.start();
+            } else {
+                throw new IllegalStateException("AudioRecord initialization failed");
             }
-        }, "AudioRecorder Thread");
-
-        recordingThread.start();
+        } catch (SecurityException e) {
+            // 权限被拒绝时的处理
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void writeAudioDataToFile() {
         byte data[] = new byte[bufferSize];
         String filename = getTempFilename();
         FileOutputStream os = null;
-
+        
         try {
+            // 确保父目录存在
+            File outputFile = new File(filename);
+            File parentDir = outputFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+            
+            Log.d("WavRecorder", "Creating output stream for: " + filename);
             os = new FileOutputStream(filename);
+            Log.d("WavRecorder", "Output stream created successfully");
         } catch (FileNotFoundException e) {
+            Log.e("WavRecorder", "FileNotFoundException: " + e.getMessage());
             e.printStackTrace();
         }
 
@@ -139,6 +179,8 @@ public class WavRecorder {
     }
 
     private void copyWaveFile(String inFilename, String outFilename) {
+        Log.d("WavRecorder", "Copying wave file from " + inFilename + " to " + outFilename);
+        
         FileInputStream in = null;
         FileOutputStream out = null;
         long totalAudioLen = 0;
@@ -151,6 +193,20 @@ public class WavRecorder {
         byte[] data = new byte[bufferSize];
 
         try {
+            // 检查输入文件是否存在
+            File inputFile = new File(inFilename);
+            if (!inputFile.exists()) {
+                Log.e("WavRecorder", "Input file does not exist: " + inFilename);
+                return;
+            }
+            
+            // 确保输出文件的目录存在
+            File outputFile = new File(outFilename);
+            File parentDir = outputFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+            
             in = new FileInputStream(inFilename);
             out = new FileOutputStream(outFilename);
             totalAudioLen = in.getChannel().size();
@@ -165,9 +221,12 @@ public class WavRecorder {
 
             in.close();
             out.close();
+            Log.d("WavRecorder", "File copied successfully");
         } catch (FileNotFoundException e) {
+            Log.e("WavRecorder", "FileNotFoundException: " + e.getMessage());
             e.printStackTrace();
         } catch (IOException e) {
+            Log.e("WavRecorder", "IOException: " + e.getMessage());
             e.printStackTrace();
         }
     }
